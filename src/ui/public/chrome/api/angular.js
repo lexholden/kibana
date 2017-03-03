@@ -37,7 +37,7 @@ module.exports = function (chrome, internals) {
         $compileProvider.debugInfoEnabled(false);
       }
     }])
-    .run(($location, $rootScope, Private) => {
+    .run(($location, $rootScope, $window, Private) => {
       chrome.getFirstPathSegment = () => {
         return $location.path().split('/')[1];
       };
@@ -56,9 +56,39 @@ module.exports = function (chrome, internals) {
           .split('/');
       };
 
+      $window.addEventListener('message', e => {
+        if (e.data.src === 'kibana') return;
+        switch (e.data.event) {
+          case 'kbnRouteChange':
+            // console.log('changing route from vue!', e.data.route, $location);
+            if ($location.$$url === e.data.route) {
+              // console.log('are the same!');
+            } else {
+              $location.url(unescape(e.data.route));
+            }
+            break;
+
+          default:
+            // console.log('unknown action from parent frame', 3);
+        }
+      });
+
       const notify = new Notifier();
       const urlOverflow = Private(UrlOverflowServiceProvider);
       const check = (event) => {
+
+        // console.log('changed route', $window, $location);
+        if (parent === window) {
+          // console.log('not in an iframe! We should block access to kibana!'); // TODO
+        } else {
+          parent.postMessage({
+            event: 'kbnRouteChange',
+            src: 'kibana',
+            route: $location.$$url,
+            height: $window.document.body.scrollHeight
+          }, '*');
+        }
+
         if ($location.path() === '/error/url-overflow') return;
 
         try {
@@ -88,6 +118,9 @@ module.exports = function (chrome, internals) {
 
       $rootScope.$on('$routeUpdate', check);
       $rootScope.$on('$routeChangeStart', check);
+      $window.addEventListener('resize', e => {
+        parent.postMessage({ event: 'kbnResize', src: 'kibana' }, '*');
+      });
     });
 
     require('../directives')(chrome, internals);

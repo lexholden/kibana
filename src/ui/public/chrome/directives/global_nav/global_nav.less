@@ -5,6 +5,7 @@
 @global-nav-logo-height: 70px;
 
 .global-nav {
+  display: none;
   width: @as-closed-width;
   position: fixed;
   left: 0;
@@ -22,7 +23,8 @@
     }
 
     + .app-wrapper {
-      left: @as-open-width;
+      left: 0;
+      // left: @as-open-width;
     }
   }
 
